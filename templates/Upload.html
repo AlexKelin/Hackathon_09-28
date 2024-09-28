@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Applicant Screening Assistant</title>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2ecc71;
+            --background-color: #ecf0f1;
+            --text-color: #34495e;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            padding: 20px;
+            gap: 40px; /* Increased gap between sections */
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin: 20px 0;
+        }
+
+        .section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 0 10px;
+        }
+
+        .drop-zone {
+            flex: 1;
+            border: 2px dashed var(--primary-color);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 10px;
+            max-height: 200px; /* Ensure minimum height for drop zones */
+        }
+
+        .drop-zone:hover {
+            background-color: rgba(52, 152, 219, 0.1);
+        }
+
+        .drop-zone.dragging {
+            background-color: rgba(52, 152, 219, 0.2);
+            border-color: var(--secondary-color);
+        }
+
+        .drop-zone p {
+            text-align: center;
+        }
+
+        textarea {
+            flex: 1;
+            width: 100%;
+            resize: none;
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid var(--primary-color);
+            border-radius: 5px;
+            min-height: 200px; /* Ensure minimum height for textareas */
+        }
+
+        .button {
+            display: block;
+            width: 200px;
+            margin: 20px auto;
+            padding: 10px 20px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .button:hover {
+            background-color: #2980b9;
+        }
+
+        .result {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s ease;
+        }
+
+        .result.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+        }
+
+        .loading-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .loading svg {
+            width: 250px;
+            height: 250px;
+        }
+
+        .loading p {
+            color: white;
+            margin-top: 20px;
+            font-size: 18px;
+        }
+
+        .loading .path {
+            stroke: cyan;
+            stroke-width: 3;
+            stroke-linejoin: round;
+            stroke-linecap: round;
+            stroke-dasharray: 193.904983521;
+            fill: none;
+            animation:
+                load 4s linear infinite,
+                color 3s linear infinite;
+        }
+
+        @keyframes load {
+            from { stroke-dashoffset: 775.6199340820312; }
+        }
+
+        @keyframes color {
+            33% { stroke: yellow; }
+            66% { stroke: magenta; }
+        }
+
+        .result h2, .result h3, .result h4 {
+            color: var(--primary-color);
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        .result .summary {
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .result .resume-list {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .result .resume-item {
+            background-color: #f9f9f9;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            border-left: 5px solid var(--primary-color);
+        }
+
+        .result .feedback {
+            margin-top: 10px;
+            padding-left: 15px;
+            border-left: 3px solid var(--secondary-color);
+        }
+
+        .result .error {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Job Applicant Screening Assistant</h1>
+    <div class="container">
+        <div class="section">
+            <h2>Resumes</h2>
+            <div id="resumeDropZone" class="drop-zone">
+                <p>Drop Resumes Here<br>(Max 3 files)</p>
+            </div>
+            <input type="file" id="resumeFileInput" multiple accept=".pdf,.doc,.docx" style="display: none;">
+            <button id="resumeUploadButton" class="button">Upload Resumes</button>
+            <button id="toggleResumeTextButton" class="button">Text Input</button>
+            <textarea id="resumeText" placeholder="Paste resume text here..." style="display: none;"></textarea>
+        </div>
+        <div class="section">
+            <h2>Job Description</h2>
+            <div id="jobDescriptionDropZone" class="drop-zone">
+                <p>Drop Job Description Here</p>
+            </div>
+            <input type="file" id="jobDescriptionFileInput" accept=".pdf,.doc,.docx" style="display: none;">
+            <button id="jobDescriptionUploadButton" class="button">Upload Job Description</button>
+            <button id="toggleJobDescriptionTextButton" class="button">Text Input</button>
+            <textarea id="jobDescriptionText" placeholder="Paste job description here..." style="display: none;"></textarea>
+        </div>
+    </div>
+    <button id="screenButton" class="button">Screen Applicants</button>
+    <div id="loading" class="loading">
+        <div class="loading-content">
+            <svg viewBox="0 0 205 120" width="205" height="120">
+                <path class="path" d="M 100.16623,51.415329 C 106.74946,45.082085 113.08279,39.707091 119.16623,35.290329 C 125.24945,30.790433 130.37444,27.790436 134.54123,26.290329 C 138.70777,24.790439 143.24943,24.04044 148.16623,24.040329 C 158.49941,24.04044 166.83274,27.498769 173.16623,34.415329 C 179.58273,41.248756 182.79106,49.540414 182.79123,59.290329 C 182.79106,65.957064 181.37439,72.123725 178.54123,77.790329 C 175.70773,83.457047 171.66607,87.748709 166.41623,90.665329 C 161.24941,93.582037 155.29108,95.040369 148.54123,95.040329 C 139.7911,95.040369 132.12444,93.16537 125.54123,89.415329 C 119.04112,85.665378 110.58279,78.582052 100.16623,68.165329 C 89.332815,78.915385 80.707824,86.082044 74.291229,89.665329 C 67.874504,93.248704 60.416178,95.040369 51.916229,95.040329 C 41.082864,95.040369 32.624539,91.665372 26.541229,84.915329 C 20.541218,78.165385 17.541221,69.623727 17.541229,59.290329 C 17.541221,49.623747 20.707884,41.332089 27.041229,34.415329 C 33.457871,27.498769 41.832863,24.04044 52.166229,24.040329 C 57.166181,24.04044 61.74951,24.790439 65.916229,26.290329 C 70.082835,27.790436 75.166163,30.790433 81.166229,35.290329 C 87.249484,39.707091 93.582811,45.082085 100.16623,51.415329 M 108.29123,59.165329 C 117.12445,67.915396 124.37445,73.873723 130.04123,77.040329 C 135.7911,80.123717 141.49943,81.665382 147.16623,81.665329 C 154.24942,81.665382 159.79108,80.08205 163.79123,75.415329 C 167.79107,71.165392 169.79107,66.040398 169.79123,60.040329 C 169.79107,53.457077 167.79107,48.040416 163.79123,43.790329 C 159.87441,39.457091 154.66608,37.290426 148.16623,37.290329 C 144.49943,37.290426 140.95776,37.957092 137.54123,39.290329 C 134.12444,40.540423 130.04111,42.790421 125.29123,46.040329 C 120.54112,49.207081 114.87446,53.582077 108.29123,59.165329 M 92.041229,59.165329 C 86.041152,54.082076 80.666157,49.915414 75.916229,46.665329 C 71.166167,43.332087 66.999504,40.957089 63.416229,39.540329 C 59.832845,38.123759 55.916182,37.415426 51.666229,37.415329 C 45.582859,37.415426 40.541198,39.540424 36.541229,43.790329 C 32.541206,48.040416 30.541208,53.457077 30.541229,60.040329 C 30.541208,64.623732 31.582873,68.498728 33.666229,71.665329 C 35.749536,74.832055 38.2912,77.290386 41.291229,79.040329 C 44.374527,80.790383 48.207857,81.665382 52.791229,81.665329 C 58.791179,81.665382 64.624507,80.08205 70.291229,76.915329 C 75.957829,73.748723 83.207822,67.832062 92.041229,59.165329" />
+            </svg>
+            <p>Screening applicants...</p>
+        </div>
+    </div>
+    <div id="result" class="result"></div>
+
+    <script>
+        const resumeDropZone = document.getElementById('resumeDropZone');
+        const jobDescriptionDropZone = document.getElementById('jobDescriptionDropZone');
+        const resumeText = document.getElementById('resumeText');
+        const jobDescriptionText = document.getElementById('jobDescriptionText');
+        const screenButton = document.getElementById('screenButton');
+        const loading = document.getElementById('loading');
+        const result = document.getElementById('result');
+        const resumeFileInput = document.getElementById('resumeFileInput');
+        const jobDescriptionFileInput = document.getElementById('jobDescriptionFileInput');
+        const resumeUploadButton = document.getElementById('resumeUploadButton');
+        const jobDescriptionUploadButton = document.getElementById('jobDescriptionUploadButton');
+        const toggleResumeTextButton = document.getElementById('toggleResumeTextButton');
+        const toggleJobDescriptionTextButton = document.getElementById('toggleJobDescriptionTextButton');
+
+        let resumeFiles = [];
+        let jobDescriptionFile = null;
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.classList.add('dragging');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.classList.remove('dragging');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.classList.remove('dragging');
+
+            const files = e.dataTransfer.files;
+            if (this.id === 'resumeDropZone') {
+                handleResumeFiles(files);
+            } else if (this.id === 'jobDescriptionDropZone') {
+                handleJobDescriptionFile(files[0]);
+            }
+        }
+
+        function handleResumeFiles(files) {
+            resumeFiles = Array.from(files).slice(0, 3);
+            updateDropZoneText(resumeDropZone, `${resumeFiles.length} resume(s) selected`);
+        }
+
+        function handleJobDescriptionFile(file) {
+            jobDescriptionFile = file;
+            updateDropZoneText(jobDescriptionDropZone, `${file.name} selected`);
+            if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+                jobDescriptionText.value = "File uploaded successfully. Content will be processed on the server.";
+            } else {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    jobDescriptionText.value = e.target.result;
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        function updateDropZoneText(dropZone, text) {
+            dropZone.innerHTML = `<p>${text}</p>`;
+        }
+
+        resumeDropZone.addEventListener('dragover', handleDragOver);
+        resumeDropZone.addEventListener('dragleave', handleDragLeave);
+        resumeDropZone.addEventListener('drop', handleDrop);
+
+        jobDescriptionDropZone.addEventListener('dragover', handleDragOver);
+        jobDescriptionDropZone.addEventListener('dragleave', handleDragLeave);
+        jobDescriptionDropZone.addEventListener('drop', handleDrop);
+
+        resumeUploadButton.addEventListener('click', () => {
+            resumeFileInput.click();
+        });
+
+        jobDescriptionUploadButton.addEventListener('click', () => {
+            jobDescriptionFileInput.click();
+        });
+
+        resumeFileInput.addEventListener('change', (e) => {
+            handleResumeFiles(e.target.files);
+        });
+
+        jobDescriptionFileInput.addEventListener('change', (e) => {
+            handleJobDescriptionFile(e.target.files[0]);
+        });
+
+        toggleResumeTextButton.addEventListener('click', () => {
+            resumeText.style.display = resumeText.style.display === 'none' ? 'block' : 'none';
+        });
+
+        toggleJobDescriptionTextButton.addEventListener('click', () => {
+            jobDescriptionText.style.display = jobDescriptionText.style.display === 'none' ? 'block' : 'none';
+        });
+
+        screenButton.addEventListener('click', async () => {
+            if (resumeFiles.length === 0 && !resumeText.value.trim()) {
+                alert('Please select at least one resume file or paste resume text.');
+                return;
+            }
+
+            const jobDescription = jobDescriptionText.value.trim();
+            if (!jobDescription && !jobDescriptionFile) {
+                alert('Please provide a job description.');
+                return;
+            }
+
+            loading.style.display = 'flex';
+            result.classList.remove('show');
+
+            const formData = new FormData();
+            resumeFiles.forEach(file => {
+                formData.append('files[]', file);
+            });
+            formData.append('job_description', jobDescription);
+            if (jobDescriptionFile) {
+                formData.append('job_description_file', jobDescriptionFile);
+            }
+
+            try {
+                const response = await fetch('/', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    result.innerHTML = `<p class="error">Error: ${data.error}</p>`;
+                } else {
+                    result.innerHTML = `
+                        <h2>Screening Results - Board of Directors Decision</h2>
+                        <div class="summary">${formatContent(data.api_response)}</div>
+                        <h3>Individual Resume Scores:</h3>
+                        <ul class="resume-list">
+                            ${data.screened_resumes.map((resume, index) => `
+                                <li class="resume-item">
+                                    <h4>Resume ${index + 1}</h4>
+                                    <p><strong>Score:</strong> ${(resume.score * 100).toFixed(1)}%</p>
+                                    <p><strong>Feedback:</strong></p>
+                                    <div class="feedback">${formatContent(resume.feedback)}</div>
+                                    <p><strong>Division Lead's Thought:</strong> ${resume.division_lead_thought}</p>
+                                    <p><strong>HR Lead's Thought:</strong> ${resume.hr_lead_thought}</p>
+                                    <p><strong>CEO's Thought:</strong> ${resume.ceo_thought}</p>
+                                    <p><strong>Hiring Committee's Decision:</strong> ${resume.hiring_committee_decision}</p>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    `;
+                }
+            } catch (error) {
+                result.innerHTML = `<p class="error">An error occurred while processing your request. Please try again.</p>`;
+            } finally {
+                loading.style.display = 'none';
+                result.classList.add('show');
+            }
+        });
+
+        function formatContent(content) {
+            return content.split('**').map((part, index) => 
+                index % 2 === 0 ? part : `<strong>${part}</strong>`
+            ).join('').split('*').map((part, index) => 
+                index % 2 === 0 ? part : `<em>${part}</em>`
+            ).join('').replace(/\n/g, '<br>');
+        }
+    </script>
+</body>
+</html>
